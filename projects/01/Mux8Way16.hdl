@@ -18,5 +18,8 @@ CHIP Mux8Way16 {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // 方針: トーナメントを実施すれば良い
+	Mux4Way16(a=a, b=b, c=c, d=d, sel=sel[0..1], out=x1); // Mux4Way16は4人分のトーナメントモジュール
+	Mux4Way16(a=e, b=f, c=g, d=h, sel=sel[0..1], out=x2);
+	Mux16(a=x1, b=x2, sel=sel[2], out=out); // 勝ち上がった2人の決勝戦
 }
