@@ -42,5 +42,30 @@ CHIP ALU {
         ng; // 1 if (out < 0),  0 otherwise
 
     PARTS:
-   // Put you code here:
+    // Step1 zxとnxのフラグによって作用されるxを求める
+    Mux16(a=x, b=false, sel=zx, out=xz); // 【ポイント】フラグ処理にはマルチプレクサ(Mux)が使える
+    Not16(in=xz,out=x0);
+    Mux16(a=xz, b=x0, sel=nx, out=xn); // xnは最終的に変換されたx
+
+    // Step2 zyとnyのフラグによって作用されるyを求める
+    Mux16(a=y, b=false, sel=zy, out=yz);
+    Not16(in=yz,out=y0); 
+    Mux16(a=yz, b=y0, sel=ny, out=yn); // ynは最終的に変換されたy
+
+    // Step3 演算処理をする
+    And16(a=xn, b=yn, out=xay);
+    Add16(a=xn, b=yn, out=xoy);
+    Mux16(a=xay, b=xoy, sel=f, out=outcompute); // なぜこれでいいのか理解できていない
+
+    // Step4 noの処理
+    Not16(in=outcompute, out=outnot);
+
+    // Step5 outとngを算出
+    Mux16(a=outcompute, b=outnot, sel=no, out=out, out[0..7]=out0to7, out[8..15]=out8to15, out[15]=ng); 
+
+    // Step6 zrを算出(複数bitから1bitにreduceする処理)
+    Or8Way (in=out0to7, out=or0to7);
+    Or8Way (in=out8to15, out=or8to15);
+    Or (a=or0to7, b=or8to15, out=or0to16);
+    Not (in=or0to16, out=zr);
 }
