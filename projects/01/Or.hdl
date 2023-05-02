@@ -14,5 +14,9 @@ CHIP Or {
     OUT out;
 
     PARTS:
-    // Put your code here:
+    // [note] De Morgan's laws (ドモルガンの法則)
+    // Nand((~A),(~B)) = Or(~(~A),~(~B)) = Or(A,B)
+    Not(in=a, out=nota);
+    Not(in=b, out=notb);
+    Nand(a=nota, b=notb, out=out);
 }
