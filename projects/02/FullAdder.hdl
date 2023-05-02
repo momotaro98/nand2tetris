@@ -13,5 +13,9 @@ CHIP FullAdder {
         carry;   // Left bit of a + b + c
 
     PARTS:
-    // Put you code here:
+    // HalfAdderを2階建てで計算。
+    // sum(一桁目)はそのまま加算。carry(二桁目)はOr演算。
+    HalfAdder(a=a, b=b, sum=absum, carry=xc);
+    HalfAdder(a=absum, b=c, sum=sum, carry=yc);
+    Or(a=xc, b=yc, out=carry);
 }
