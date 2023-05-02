@@ -15,4 +15,11 @@ CHIP Mux {
 
     PARTS:
     // Put your code here:
+    // 方針
+    // [note] selが1ならば通して0ならばすべて0にするような操作 → Andの演算と同じ意味
+    // aとbそれぞれで操作した後にOr演算すればOK
+    Not(in=sel, out=notsel);
+    And(a=a, b=notsel, out=sela);
+    And(a=b, b=sel, out=selb);
+    Or(a=sela, b=selb, out=out);
 }
