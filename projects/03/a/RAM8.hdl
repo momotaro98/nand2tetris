@@ -15,5 +15,18 @@ CHIP RAM8 {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // 1つから8つのどれかに渡す → DMux8Way
+	DMux8Way(in=load, sel=address, a=load0, b=load1, c=load2, d=load3, e=load4, f=load5, g=load6, h=load7);
+	
+	Register(in=in, load=load0, out=o1);
+	Register(in=in, load=load1, out=o2);
+	Register(in=in, load=load2, out=o3);
+	Register(in=in, load=load3, out=o4);
+	Register(in=in, load=load4, out=o5);
+	Register(in=in, load=load5, out=o6);
+	Register(in=in, load=load6, out=o7);
+	Register(in=in, load=load7, out=o8);
+	
+    // 8つのどれかを1つに渡す → Mux8Way16
+	Mux8Way16(a=o1, b=o2, c=o3, d=o4, e=o5, f=o6, g=o7, h=o8, sel=address, out=out);
 }
