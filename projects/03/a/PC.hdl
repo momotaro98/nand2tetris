@@ -16,5 +16,10 @@ CHIP PC {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+	Mux16(a=preOut, b=addOut, sel=inc, out=o1); // incフラグ対応。レジスタと加算器の2値をフィードバックで得る。
+	Mux16(a=o1, b=in, sel=load, out=o2);        // loadフラグ対応。
+	Mux16(a=o2, b=false, sel=reset, out=o3);    // resetフラグ対応
+	
+	Register(in=o3, load=true, out=preOut, out=out);
+	Inc16(in=preOut, out=addOut);
 }
