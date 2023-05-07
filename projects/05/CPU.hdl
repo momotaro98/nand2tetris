@@ -39,5 +39,82 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-    // Put your code here:
+
+    // [note]
+    // instruction[16]のビット内訳 (C命令でのHack機械語の仕様)
+    // jjj ddd cccccc a xx i の16ビット
+    // jjj (instruction[0..2]) はJumpする条件の<=,>,!=等の条件分岐8パターン分の情報でPC(Program Counter)での次の命令先の決定に使われる。
+    // ddd (instruction[3..5]) はALUでの計算結果の保存場所の指示。Mメモリ、Aレジスタ、Dレジスタ、そのうちの2つ、全部の8ビットパターン。
+    // cccccc (instruction[6..11]) a (instruction[12]) はALUに対してどのような計算処理をさせるかの指示。
+    // aはメモリM(inM)を使うかどうかのフラグであり、ccccccは計算パターンでーD,D+A,M+1,D|Mなどaを含めて28種類ほどある。
+    // xx (instruction[13..14]) は利用されない領域である。
+    // i[15] は命令がA命令(0)かC命令(1)かのフラグになる。A命令ならば残りの15ビットがAレジスタ(データor命令アドレス)にロードされ、C命令は計算を実行する。
+
+    // first Mux
+    // AレジスタにロードするデータがALU結果(C命令)かInstruction(A命令)か処理する役割。
+    Not(in=instruction[15], out=isA);
+    Mux16(a=outInner, b=instruction, sel=isA, out=o1);
+
+    // A register
+    // Aレジスタにデータをロードするかしないかの判断処理がNotとNandの役割。
+    // instruction[15]が0(A命令)ならば確実にロードし、C命令(1)ならばinstruction[5]が0のときはロードしないようにする。
+    Not(in=instruction[5], out=d1not);
+    Nand(a=instruction[15], b=d1not, out=ca);
+    ARegister(in=o1, load=ca, out=oa,out[0..14]=addressM);
+
+    // second Mux
+    // ALUに計算させる場合(C命令)、メモリデータ(inM)を使うかAレジスタのデータ(oa)を使うかの判断処理の役割。
+    And(a=instruction[15], b=instruction[12], out=a);
+    Mux16(a=oa, b=inM, sel=a, out=o2);
+
+    // D register
+    // C命令でかつinstruction[4]がTrueならばDレジスタにALU結果を格納する。
+    And(a=instruction[15], b=instruction[4], out=d2);
+    DRegister(in=outInner, load=d2, out=od);
+
+    // ALU
+    // Dレジスタのデータとsecond Muxからのデータが計算に利用する2つのデータである。instruction[6..11]は計算パターン指定である。
+    And(a=instruction[15], b=instruction[11], out=c1);
+    And(a=instruction[15], b=instruction[10], out=c2);
+    And(a=instruction[15], b=instruction[9],  out=c3);
+    And(a=instruction[15], b=instruction[8],  out=c4);
+    And(a=instruction[15], b=instruction[7],  out=c5);
+    And(a=instruction[15], b=instruction[6],  out=c6);	
+    ALU(
+        x=od,
+        y=o2,
+        zx=c1,
+        nx=c2,
+        zy=c3,
+        ny=c4,
+        f=c5,
+        no=c6,
+        out=outM,
+        out=outInner,
+        zr=zr,
+        ng=ng);
+
+    // pc
+    // 次の命令を決定する役割。
+    // instruction[0..2]のJUMP条件(不等号)とALU演算結果から判断する。
+    // JUMPするならばAレジスタのデータが次の命令になる。
+    // JUMPしないならばPC内で抱えているRegisterの値をインクリメントしたデータが次の命令になる。
+    // resetが指定されていれば0が次の命令になる。
+    And(a=instruction[15], b=instruction[0], out=j3);
+    And(a=instruction[15], b=instruction[1], out=j2);
+    And(a=instruction[15], b=instruction[2], out=j1);
+    Or(a=ng, b=zr, out=ngzr);
+    Not(in=ngzr, out=ngzrnot);
+    And(a=j1, b=ng, out=isLT);
+    And(a=j2, b=zr, out=isEq);
+    And(a=j3, b=ngzrnot, out=isGT);
+    Or(a=isLT, b=isEq, out=orPart);
+    Or(a=orPart, b=isGT, out=isJump);
+    Not(in=isJump, out=notJump);
+    PC(in=oa, load=isJump, inc=notJump, reset=reset, out[0..14]=pc);
+
+    // writeM
+    // メモリに書き込むかのフラグでメモリの入力になる。
+    And(a=instruction[15], b=instruction[3], out=d3);
+    Or(a=false, b=d3, out=writeM);
 }

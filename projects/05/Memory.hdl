@@ -27,5 +27,15 @@ CHIP Memory {
     OUT out[16];
 
     PARTS:
-    // Put your code here:
+    // Step1: 対象先がRAM16かスクリーンかキーボードかはaddress[13..14]の範囲で指定される。
+    DMux(in=load, sel=address[14], a=loadRAM16K, b=loadMap);
+    DMux(in=loadMap,sel=address[13],a=loadScreenMap, b=loadKeyMap);
+
+    // Step2: loadフラグが立っていれば書き込まれる。出力とloadは時系列ではある意味別関係。
+    RAM16K(in=in, load=loadRAM16K, address=address[0..13],out=oR);
+    Screen(in=in, load=loadScreenMap, address=address[0..12], out=oS);
+    Keyboard(out=oK); // [note]キーボードは電気信号入力そのものなのでメモリマップに直接書き込まれoutのみとみなすことができる。
+
+    // Step3: 出力結果がaddress[13..14]の範囲で指定される。
+    Mux4Way16(a=oR, b=oR,c=oS, d=oK,sel=address[13..14], out=out);
 }
