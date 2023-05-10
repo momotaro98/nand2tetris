@@ -1,13 +1,23 @@
 package main
 
 import (
+	"bufio"
+	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 )
 
+var (
+	dirName  = flag.String("dir", "add", "doc here")
+	fileName = flag.String("file", "Add", "doc here")
+)
+
 func main() {
-	file, err := os.Open("./add/Add.asm")
+	flag.Parse()
+
+	file, err := os.Open(fmt.Sprintf("./%s/%s.asm", *dirName, *fileName))
 	if err != nil {
 		fmt.Println("Error opening file:", err)
 		return
@@ -16,6 +26,14 @@ func main() {
 
 	parser := NewParser(file)
 	code := NewCode()
+
+	oFile, err := os.Create(fmt.Sprintf("./%s/%s-actual.hack", *dirName, *fileName))
+	if err != nil {
+		fmt.Println("Error creating file:", err)
+		os.Exit(1)
+	}
+	defer file.Close()
+	writer := bufio.NewWriter(oFile)
 
 	for parser.hasMoreCommands() {
 		parser.advance()
@@ -47,6 +65,14 @@ func main() {
 				code.jump(jumpM),
 			)
 		}
-		fmt.Println(result)
+
+		_, _ = io.WriteString(writer, result+"\n")
+		if err != nil {
+			fmt.Println("Error writing to file:", err)
+			os.Exit(1)
+		}
+
 	}
+
+	writer.Flush()
 }
