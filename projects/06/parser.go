@@ -45,11 +45,10 @@ func (p *parser) hasMoreCommands() bool {
 			return false
 		}
 		line := p.scanner.Text()
-		strings.ReplaceAll(line, " ", "") // 空白除去
-		if len(line) < 1 {                // 空行除去
-			continue
-		}
-		if strings.HasPrefix(line, "//") { // コメント文除去
+		line = strings.SplitN(line, "//", 2)[0] // コメント文除去
+		line = strings.TrimSpace(line)          // 端空白削除
+		strings.ReplaceAll(line, " ", "")       // 中間空白除去
+		if len(line) < 1 {                      // 空行スキップ
 			continue
 		}
 		p.nextCommand = line
@@ -87,8 +86,8 @@ func (p *parser) symbol() string {
 	if found {
 		return s
 	}
-	s = strings.TrimPrefix(p.currentCommand, "(")
-	s = strings.TrimSuffix(p.currentCommand, ")")
+	s = strings.TrimPrefix(s, "(")
+	s = strings.TrimSuffix(s, ")")
 	return s
 }
 

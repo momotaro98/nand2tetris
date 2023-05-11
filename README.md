@@ -5,6 +5,10 @@
 ./tools/HardwareSimulator.sh 
 ```
 
+## My notes
+
+* [Chapter4 機械語仕様(重要)](./projects/04/README.md)
+
 ## References
 
 * [Official site](https://www.nand2tetris.org/)
