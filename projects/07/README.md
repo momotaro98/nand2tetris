@@ -1,3 +1,10 @@
+## 実装したVM変換プログラムの動作方法
+
+```
+go run *.go -path=./StackArithmetic/SimpleAdd/SimpleAdd.vm
+```
+
+This generates asm code to `./StackArithmetic/SimpleAdd/SimpleAdd.asm`.
 
 ## スタックマシン 理解
 

@@ -94,11 +94,46 @@ func (cw *codeWriter) writeUnaryOperation(command string) {
 	case "not":
 		cw.writeCode("M=!M")
 	}
-
 }
 
+// stack上の2つを指定の比較演算で比較し
+// Trueならば-1を Falseならば0 (本書籍の機械語の仕様である) を
+// スタックのTopに積む
 func (cw *codeWriter) writeCompOperation(command string) {
-	// TODO
+	// stackのtopをDレジスタに入れる
+	cw.writePopToMRegister()
+	cw.writeCode("D=M")
+	// stackの次のtopのアドレスをAレジスタに入れる
+	cw.writePopToMRegister()
+
+	// JUMP用のラベルを生成する
+	l1 := cw.getNewLabel()
+	l2 := cw.getNewLabel()
+
+	var compType string
+	switch command {
+	case "eq":
+		compType = "JEQ"
+	case "gt":
+		compType = "JGT"
+	case "lt":
+		compType = "JLT"
+	}
+
+	cw.writeCodes([]string{
+		"D=M-D",                       // 2つの値の差分を取る
+		fmt.Sprintf("@%s", l1),        // 次コマンドでのJMP指定先のラベルをロード
+		fmt.Sprintf("D;%s", compType), // D;JEQ or D;JGT or D;JLT のいづれかでTrueならば前コマンドのラベルへ移動する
+		"D=0",                         // case False 前コマンドでFalseになったので D=0 (本書の機械語仕様)
+		fmt.Sprintf("@%s", l2),        // case False Dレジスタ値をスタックに積むコマンドの手前まで飛ぶ用のロード
+		"0;JMP",                       // case False 飛ぶ
+		fmt.Sprintf("(%s)", l1),       // case True の場合のラベル先
+		"D=-1",                        // case True なので D=-1 (本書の機械語仕様)
+		fmt.Sprintf("(%s)", l2),       // case False での飛ぶ先
+	})
+
+	// Dレジスタ値をスタックに入れスタックをインクリメントする
+	cw.writePushFromDRegister()
 }
 
 func (cw *codeWriter) WritePushPop(command CommandType, segment string, index int) {
