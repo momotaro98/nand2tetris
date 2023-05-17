@@ -11,9 +11,9 @@ output-list RAM[0]%D1.6.1 RAM[256]%D1.6.1;
 set RAM[0] 256,
 set RAM[1] 300,
 set RAM[2] 400,
-set RAM[400] 3,
+set RAM[400] 10,
 
-repeat 600 {
+repeat 12000 {
   ticktock;
 }
 

@@ -19,6 +19,13 @@ type CodeWriter interface {
 	SetFileName(filename string)
 	WriteArithmetic(command string)
 	WritePushPop(command CommandType, segment string, index int)
+	WriteInit()
+	WriteLabel(label string)
+	WriteGoto(label string)
+	WriteIf(label string)
+	WriteCall(functionName string, numArgs int)
+	WriteReturn()
+	WriteFunction(functionName string, numLocals int)
 }
 
 type codeWriter struct {
@@ -26,6 +33,7 @@ type codeWriter struct {
 	oFile                     *os.File
 	writer                    *bufio.Writer
 	labelNum                  int // 重複しないラベルを生成するためのカウンター
+	currentFunctionName       string
 }
 
 func NewCodeWriter(oFilePath string) CodeWriter {
@@ -311,4 +319,35 @@ func (cw *codeWriter) writeCode(s string) {
 func (cw *codeWriter) getNewLabel() string {
 	cw.labelNum++
 	return fmt.Sprintf("LABEL%d", cw.labelNum)
+}
+
+func (cw *codeWriter) WriteInit() {}
+
+func (cw *codeWriter) WriteLabel(label string) {
+	ln := cw.getLabelName(label)
+	cw.writeCode(fmt.Sprintf("(%s)", ln))
+}
+
+func (cw *codeWriter) WriteGoto(label string) {}
+
+func (cw *codeWriter) WriteIf(label string) {
+	cw.writePopToMRegister() // ワーキングスタックTopのアドレスをAレジスタに格納する
+	cw.writeCodes([]string{
+		"D=M", // ワーキングスタックTopの値がDレジスタに入る
+		fmt.Sprintf("@%s", cw.getLabelName(label)), // ラベルをAレジスタにロードする
+		"D;JNE", // Dの値が0でない(True)ならばラベル先へジャンプする
+	})
+}
+
+func (cw *codeWriter) WriteCall(functionName string, numArgs int) {}
+
+func (cw *codeWriter) WriteReturn() {}
+
+func (cw *codeWriter) WriteFunction(functionName string, numLocals int) {}
+
+func (cw *codeWriter) getLabelName(label string) string {
+	if cw.currentFunctionName != "" {
+		return fmt.Sprintf("%s:%s", cw.currentFunctionName, label)
+	}
+	return fmt.Sprintf("global:%s", label)
 }

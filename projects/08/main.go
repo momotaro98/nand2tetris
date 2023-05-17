@@ -23,11 +23,12 @@ func main() {
 		translateFile(path, codeWriter)
 		fmt.Println("Translated to", outputPath)
 	} else { // Directory
-		if strings.HasSuffix(path, "/") {
-			path = path[:len(path)-1]
+		if !strings.HasSuffix(path, "/") {
+			path = path + "/"
 		}
-
-		outputPath := path + ".asm"
+		d := filepath.Dir(path)
+		b := filepath.Base(path)
+		outputPath := filepath.Join(d, b) + ".asm"
 		codeWriter := NewCodeWriter(outputPath)
 		defer codeWriter.Close()
 
@@ -53,13 +54,28 @@ func translateFile(file string, codeWriter CodeWriter) {
 	codeWriter.SetFileName(strings.Split(filepath.Base(file), ".")[0])
 	for parser.hasMoreCommands() {
 		parser.advance()
-		if parser.commandType() == C_ARITHMETIC {
+
+		switch parser.commandType() {
+		case C_ARITHMETIC:
 			codeWriter.WriteArithmetic(parser.arg1())
-		} else if parser.commandType() == C_PUSH {
+		case C_PUSH:
 			codeWriter.WritePushPop(C_PUSH, parser.arg1(), parser.arg2())
-		} else if parser.commandType() == C_POP {
+		case C_POP:
 			codeWriter.WritePushPop(C_POP, parser.arg1(), parser.arg2())
+		case C_LABEL:
+			codeWriter.WriteLabel(parser.arg1())
+		// case C_GOTO:
+		// 	codeWriter.WriteGoto(parser.arg1())
+		case C_IF:
+			codeWriter.WriteIf(parser.arg1())
+			// case C_FUNCTION:
+			// 	codeWriter.WriteFunction(parser.arg1(), parser.arg2())
+			// case C_RETURN:
+			// 	codeWriter.WriteReturn()
+			// case C_CALL:
+			// 	codeWriter.WriteCall(parser.arg1(), parser.arg2())
 		}
+
 	}
 	codeWriter.Flush()
 }
