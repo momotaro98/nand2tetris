@@ -51,6 +51,7 @@ func main() {
 func translateFile(file string, codeWriter CodeWriter) {
 	parser := NewParser(file)
 	defer parser.Close()
+	codeWriter.WriteInit()
 	codeWriter.SetFileName(strings.Split(filepath.Base(file), ".")[0])
 	for parser.hasMoreCommands() {
 		parser.advance()

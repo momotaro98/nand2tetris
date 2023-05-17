@@ -9,7 +9,7 @@
 // by the bootstrap code.
 
 function Sys.init 0
-push constant 4
-call Main.fibonacci 1   // computes the 4'th fibonacci element
+push constant 6
+call Main.fibonacci 1   // computes the 6'th fibonacci element
 label WHILE
 goto WHILE              // loops infinitely
