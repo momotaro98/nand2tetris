@@ -32,7 +32,8 @@ type codeWriter struct {
 	currentTranslatedFileName string
 	oFile                     *os.File
 	writer                    *bufio.Writer
-	labelNum                  int // 重複しないラベルを生成するためのカウンター
+	ifLabelNum                int // 重複しないラベルを生成するためのカウンター
+	returnLabelNum            int
 	currentFunctionName       string
 }
 
@@ -40,9 +41,9 @@ func NewCodeWriter(oFilePath string) CodeWriter {
 	oFile, _ := os.Create(oFilePath)
 	writer := bufio.NewWriter(oFile)
 	return &codeWriter{
-		oFile:    oFile,
-		writer:   writer,
-		labelNum: 0,
+		oFile:      oFile,
+		writer:     writer,
+		ifLabelNum: 0,
 	}
 }
 
@@ -115,8 +116,8 @@ func (cw *codeWriter) writeCompOperation(command string) {
 	cw.writePopToMRegister()
 
 	// JUMP用のラベルを生成する
-	l1 := cw.getNewLabel()
-	l2 := cw.getNewLabel()
+	l1 := cw.getNewIfLabel()
+	l2 := cw.getNewIfLabel()
 
 	var compType string
 	switch command {
@@ -316,12 +317,28 @@ func (cw *codeWriter) writeCode(s string) {
 	_, _ = io.WriteString(cw.writer, s+"\n")
 }
 
-func (cw *codeWriter) getNewLabel() string {
-	cw.labelNum++
-	return fmt.Sprintf("LABEL%d", cw.labelNum)
+func (cw *codeWriter) getNewIfLabel() string {
+	cw.ifLabelNum++
+	return fmt.Sprintf("IF_LABEL_%d", cw.ifLabelNum)
 }
 
-func (cw *codeWriter) WriteInit() {}
+func (cw *codeWriter) getNewReturnLabel() string {
+	cw.returnLabelNum++
+	return fmt.Sprintf("RETURN_LABEL_%d", cw.returnLabelNum)
+}
+
+func (cw *codeWriter) WriteInit() {
+	// スタックポインタ(SP)を0x0100(256)に初期化する
+	cw.writeCodes([]string{
+		"@256",
+		"D=A",
+		"@SP",
+		"M=D",
+	})
+
+	// (変換されたコードの) Sys.init を実行する
+	cw.WriteCall("Sys.init", 0)
+}
 
 func (cw *codeWriter) WriteLabel(label string) {
 	ln := cw.getLabelName(label)
@@ -345,15 +362,171 @@ func (cw *codeWriter) WriteIf(label string) {
 }
 
 func (cw *codeWriter) WriteCall(functionName string, numArgs int) {
-	// TODO: implement
+	// Return step1
+	// 呼び先のreturn後は次の処理へジャンプしたい。
+	// return後のジャンプ先はWriteCallの最後にラベル付けしている(Return step3)。
+	// 呼び先側にジャンプ先のラベルのアドレスを教えるためにラベル値のアドレスをスタックに積む。
+	// 実際にジャンプするのはReturn Step2である。
+	returnLabel := cw.getNewReturnLabel()
+	cw.writeCodes([]string{
+		fmt.Sprintf("@%s", returnLabel),
+		"D=A",
+	})
+	cw.writePushFromDRegister() // push return-address
+
+	// 呼び先側のreturnから戻ってきたときのために、
+	// 呼び出し側LCL,ARG,THIS,THATをスタックに積んでおく
+
+	// LCLが持つ現状の先頭アドレス値をスタックに積む
+	cw.writeCodes([]string{
+		"@LCL",
+		"D=M",
+	})
+	cw.writePushFromDRegister()
+
+	// ARGが持つ現状の先頭アドレス値をスタックに積む
+	cw.writeCodes([]string{
+		"@ARG",
+		"D=M",
+	})
+	cw.writePushFromDRegister()
+
+	// THISが持つ現状の先頭アドレス値をスタックに積む
+	cw.writeCodes([]string{
+		"@THIS",
+		"D=M",
+	})
+	cw.writePushFromDRegister()
+
+	// THATが持つ現状の先頭アドレス値をスタックに積む
+	cw.writeCodes([]string{
+		"@THAT",
+		"D=M",
+	})
+	cw.writePushFromDRegister()
+
+	// ARGを呼び先側での処理を開始するために移動させる。
+	// Callをする前に対象関数のARGをスタックに積んでいるので、
+	// 現状のスタック位置(SP)から対象関数のARG個分(n)と
+	// return-address,呼び出し側LCL,ARG,THIS,THAT(5個)を
+	// 引いた位置になる。
+	cw.writeCodes([]string{
+		"@SP",
+		"D=M",
+		"@5",
+		"D=D-A",
+		fmt.Sprintf("@%d", numArgs),
+		"D=D-A",
+		"@ARG",
+		"M=D", // ARG = SP - n - 5
+	})
+
+	// LCLを呼び先側での処理を開始するために移動させる。
+	// スタックマシンの設計上、return-address,呼び出し側LCL,ARG,THIS,THATを
+	// 積んでいる現状のスタック位置(SP)がLCLの移動先になる。
+	cw.writeCodes([]string{
+		"@SP",
+		"D=M",
+		"@LCL",
+		"M=D", // LCL = SP
+	})
+
+	cw.writeCodes([]string{
+		// Return step2
+		// 呼び先の関数へジャンプする
+		fmt.Sprintf("@%s", functionName),
+		"0;JMP", // goto function
+		// Return step3
+		// 呼び先の関数のreturnの処理によって
+		// スタックに積んでいたこの場所のラベルへジャンプしてくる。
+		fmt.Sprintf("(%s)", returnLabel),
+	})
 }
 
 func (cw *codeWriter) WriteReturn() {
-	// TODO: implement
+	// FRAMEの設定とReturnアドレスを一時領域へ取得する。
+	// FRAME(R13)は以降の呼び出し側の関数の状態へ
+	// LCL,ARG,THIS,THATを戻し移すために便宜上必要な一時変数。
+	// 実態は呼び先でのLCLである。
+	cw.writeCodes([]string{
+		"@LCL",
+		"D=M",
+		"@R13",
+		"M=D", // R13 = FRAME = LCL
+		"@5",
+		"D=A",
+		"@R13",
+		"A=M-D",
+		"D=M", // D = *(FRAME-5) = return-address
+		"@R14",
+		"M=D", // R14 = return-address // R14の一時領域にReturn先アドレスを入れておく
+	})
+
+	// ワーキングスタックのTopにある関数の戻り値を現状呼び先ARGの先頭アドレス先に格納する。
+	// その理由は、現状呼び先ARGの先頭アドレスは、スタックマシンの設計上、
+	// 呼び出し側へreturnから戻ったときのスタックTOP値(SP-1)であるから。
+	cw.writePopToMRegister()
+	cw.writeCodes([]string{
+		"D=M",
+		"@ARG",
+		"A=M", // M = *ARG
+		"M=D", // *ARG = pop()
+	})
+
+	cw.writeCodes([]string{
+		// 呼び出し側のSPを戻す
+		"@ARG",
+		"D=M+1",
+		"@SP",
+		"M=D", // SP = ARG + 1 // スタックマシンの設計上、現ARG+1が呼び出し側のSPになる。
+
+		// 呼び出し側のTHATを戻す
+		"@R13",
+		"AM=M-1", // A = FRAME-1, R13 = FRAME-1
+		"D=M",
+		"@THAT",
+		"M=D", // THAT = *(FRAME-1)
+
+		// 呼び出し側のTHISを戻す
+		"@R13",
+		"AM=M-1",
+		"D=M",
+		"@THIS",
+		"M=D", // THIS = *(FRAME-2)
+
+		// 呼び出し側のARGを戻す
+		"@R13",
+		"AM=M-1",
+		"D=M",
+		"@ARG",
+		"M=D", // ARG = *(FRAME-3)
+
+		// 呼び出し側のLCLを戻す
+		"@R13",
+		"AM=M-1",
+		"D=M",
+		"@LCL",
+		"M=D", // LCL = *(FRAME-4)
+
+		// 一時領域R14に入れておいたreturn-address先へジャンプする
+		"@R14",
+		"A=M",
+		"0;JMP", // goto return-address
+	})
+
 }
 
 func (cw *codeWriter) WriteFunction(functionName string, numLocals int) {
-	// TODO: implement
+	cw.writeCodes([]string{
+		fmt.Sprintf("(%s)", functionName),
+		"D=0",
+	})
+	for i := 0; i < numLocals; i++ {
+		// 定義Functionが持つローカル変数個数分のメモリ領域を確保する。
+		// スタックマシンの設計上、グローバルスタック上がメモリ領域になる。
+		cw.writePushFromDRegister() // Dレジスタ値(=0)を初期値としてメモリ領域を確保する。
+	}
+	cw.currentFunctionName = functionName
 }
 
 func (cw *codeWriter) getLabelName(label string) string {
