@@ -15,10 +15,12 @@ local,this,などそれぞれのスコープで専用のメモリ領域が存在
 ## VM code 理解
 
 ```
-push local 52  // localメモリ領域のindex 57の値をスタックに積む
-push this 2    // thisメモリ領域のindex 2の値をスタックに積む
-add            // スタックメモリ領域上で演算
-pop local 53   // 現スタック値をlocalメモリ領域のindex 53に格納する
+push local 52       // localメモリ領域のindex 57の値をスタックに積む
+push this 2         // thisメモリ領域のindex 2の値をスタックに積む
+add                 // スタックメモリ領域上で演算
+pop local 53        // 現スタック値をlocalメモリ領域のindex 53に格納する
+push constant 3000  // 3000という数値がスタックに積まれる。(constantにはメモリ領域は存在しない)
+pop pointer 1       // pointerのindex 1はthisメモリ領域の先頭アドレスを指す。そのためthisメモリ領域の先頭アドレスが3000に移動した。
 ```
 
 ## VM translation 理解

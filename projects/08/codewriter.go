@@ -328,7 +328,12 @@ func (cw *codeWriter) WriteLabel(label string) {
 	cw.writeCode(fmt.Sprintf("(%s)", ln))
 }
 
-func (cw *codeWriter) WriteGoto(label string) {}
+func (cw *codeWriter) WriteGoto(label string) {
+	cw.writeCodes([]string{
+		fmt.Sprintf("@%s", cw.getLabelName(label)),
+		"0;JMP",
+	})
+}
 
 func (cw *codeWriter) WriteIf(label string) {
 	cw.writePopToMRegister() // ワーキングスタックTopのアドレスをAレジスタに格納する
@@ -339,11 +344,17 @@ func (cw *codeWriter) WriteIf(label string) {
 	})
 }
 
-func (cw *codeWriter) WriteCall(functionName string, numArgs int) {}
+func (cw *codeWriter) WriteCall(functionName string, numArgs int) {
+	// TODO: implement
+}
 
-func (cw *codeWriter) WriteReturn() {}
+func (cw *codeWriter) WriteReturn() {
+	// TODO: implement
+}
 
-func (cw *codeWriter) WriteFunction(functionName string, numLocals int) {}
+func (cw *codeWriter) WriteFunction(functionName string, numLocals int) {
+	// TODO: implement
+}
 
 func (cw *codeWriter) getLabelName(label string) string {
 	if cw.currentFunctionName != "" {

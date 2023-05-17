@@ -64,16 +64,16 @@ func translateFile(file string, codeWriter CodeWriter) {
 			codeWriter.WritePushPop(C_POP, parser.arg1(), parser.arg2())
 		case C_LABEL:
 			codeWriter.WriteLabel(parser.arg1())
-		// case C_GOTO:
-		// 	codeWriter.WriteGoto(parser.arg1())
+		case C_GOTO:
+			codeWriter.WriteGoto(parser.arg1())
 		case C_IF:
 			codeWriter.WriteIf(parser.arg1())
-			// case C_FUNCTION:
-			// 	codeWriter.WriteFunction(parser.arg1(), parser.arg2())
-			// case C_RETURN:
-			// 	codeWriter.WriteReturn()
-			// case C_CALL:
-			// 	codeWriter.WriteCall(parser.arg1(), parser.arg2())
+		case C_FUNCTION:
+			codeWriter.WriteFunction(parser.arg1(), parser.arg2())
+		case C_RETURN:
+			codeWriter.WriteReturn()
+		case C_CALL:
+			codeWriter.WriteCall(parser.arg1(), parser.arg2())
 		}
 
 	}
