@@ -12,6 +12,12 @@ This generates asm code to `./StackArithmetic/SimpleAdd/SimpleAdd.asm`.
 
 local,this,などそれぞれのスコープで専用のメモリ領域が存在する。
 
+(8章)関数呼び出しとreturnの実装はスタックマシンとしてグローバルスタック上に呼び出し元データ(※)をストックしながら制御する。
+
+(8章)上位言語側のmain関数から実行される仕組みはVM言語側のブートストラップの実装(※)で実現されている。
+
+※ 本ページ最下の[NestedCall.html](../08/FunctionCalls/NestedCall/NestedCall.html)の図を参照。
+
 ## VM code 理解
 
 ```
@@ -64,3 +70,7 @@ M=D     // 現スタック値が15になる
 @SP
 M=M+1
 ```
+
+## スタックマシン図
+
+![image](../08/FunctionCalls/NestedCall/NestedCall.png)

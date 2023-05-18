@@ -5,9 +5,15 @@
 ./tools/HardwareSimulator.sh 
 ```
 
+## Complete code (with Golang)
+
+* Assembly implementation is on [./projects/06](./projects/06).
+* VM implementation is on [./projects/08](./projects/08).
+
 ## My notes
 
 * [Chapter4 機械語仕様(重要)](./projects/04/README.md)
+* [Chapter7 VM・スタックマシン仕様(重要)](./projects/07/README.md)
 
 ## References
 
