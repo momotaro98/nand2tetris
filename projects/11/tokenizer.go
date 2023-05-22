@@ -185,8 +185,8 @@ func (jt *JackTokenizer) HasMoreToken() bool {
 
 func (jt *JackTokenizer) Advance() {
 	if jt.HasMoreToken() {
-		jt.curToken = jt.queue[len(jt.queue)-1]
-		jt.queue = jt.queue[:len(jt.queue)-1]
+		jt.curToken = jt.queue[0]
+		jt.queue = jt.queue[1:]
 	}
 }
 

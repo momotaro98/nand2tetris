@@ -22,7 +22,7 @@ type CompilationEngine struct {
 
 func NewCompilationEngine(inputFile *os.File) (*CompilationEngine, error) {
 	path := filepath.Dir(inputFile.Name())
-	prefixFileName := strings.Split(inputFile.Name(), ".")[0]
+	prefixFileName := strings.Split(filepath.Base(inputFile.Name()), ".")[0]
 	outputFile, err := os.Create(filepath.Join(path, prefixFileName+".vm"))
 	if err != nil {
 		return nil, err
@@ -192,6 +192,12 @@ func (ce *CompilationEngine) CompileSubroutine() {
 		panic("Syntax error: " + ce.jackTokenizer.GetCurToken() + ", identifier expected.")
 	}
 
+	// Compile '(' after subroutine name.
+	ce.jackTokenizer.Advance()
+	if ce.jackTokenizer.GetCurToken() != "(" {
+		panic("Syntax error: " + ce.jackTokenizer.GetCurToken() + ", unexpected.")
+	}
+
 	// Compile the parameter list or null.
 	ce.jackTokenizer.Advance()
 	label := 0
@@ -216,6 +222,8 @@ func (ce *CompilationEngine) CompileSubroutine() {
 	} else {
 		// Read the remaining body.
 		ce.jackTokenizer.Advance()
+
+		// TODO: この辺に問題あり、Output.printInt を処理しないで CompileSubroutine を抜けてしまっている。
 
 		// Variable declarations.
 		if ce.jackTokenizer.GetCurToken() == "var" {
@@ -245,7 +253,7 @@ func (ce *CompilationEngine) CompileSubroutine() {
 		}
 
 		// Statements.
-		for ce.jackTokenizer.GetQueue()[len(ce.jackTokenizer.GetQueue())-1] == "}" {
+		for ce.jackTokenizer.GetQueue()[0] != "}" {
 			ce.CompileStatements()
 		}
 
@@ -433,7 +441,7 @@ func (ce *CompilationEngine) CompileDo() {
 	}
 
 	// Expression list maybe null
-	if ce.IsTerm(ce.jackTokenizer.GetQueue()[len(ce.jackTokenizer.GetQueue())-1]) {
+	if ce.IsTerm(ce.jackTokenizer.GetQueue()[0]) {
 		ce.CompileExpressionList()
 	}
 
@@ -516,7 +524,7 @@ func (ce *CompilationEngine) CompileLet() {
 		}
 
 		// Next expected token is ";"
-		if ce.jackTokenizer.GetQueue()[len(ce.jackTokenizer.GetQueue())-1] != ";" {
+		if ce.jackTokenizer.GetQueue()[0] != ";" {
 			panic("Syntax error: " + ce.jackTokenizer.GetCurToken() + ", unexpected")
 		}
 		ce.vmWriter.WritePop("temp", 0)
@@ -665,14 +673,14 @@ func (ce *CompilationEngine) CompileIf() {
 	}
 
 	// Write label code
-	if ce.jackTokenizer.GetQueue()[len(ce.jackTokenizer.GetQueue())-1] == "else" {
+	if ce.jackTokenizer.GetQueue()[0] == "else" {
 		// Only if the next token is "else", we need to set this label
 		ce.vmWriter.WriteGoto("IF_END" + strconv.Itoa(originIfIndex))
 	}
 	ce.vmWriter.WriteLabel("IF_FALSE" + strconv.Itoa(originIfIndex))
 
 	// Next token may be "else" or others
-	if ce.jackTokenizer.GetQueue()[len(ce.jackTokenizer.GetQueue())-1] == "else" {
+	if ce.jackTokenizer.GetQueue()[0] == "else" {
 		// Append the token
 		ce.jackTokenizer.Advance()
 
@@ -791,7 +799,7 @@ func (ce *CompilationEngine) CompileTerm() {
 		// varName...
 	} else if ce.jackTokenizer.TokenType() == IDENTIFIER {
 		subName := ce.jackTokenizer.GetCurToken()
-		head := ce.jackTokenizer.GetQueue()[len(ce.jackTokenizer.GetQueue())-1]
+		head := ce.jackTokenizer.GetQueue()[0]
 		if head == "[" {
 			ce.jackTokenizer.Advance()
 			ce.jackTokenizer.Advance()
@@ -811,9 +819,9 @@ func (ce *CompilationEngine) CompileTerm() {
 			ce.vmWriter.WritePush("that", 0)
 		} else if head == "(" {
 			ce.jackTokenizer.Advance()
-			if ce.jackTokenizer.GetQueue()[len(ce.jackTokenizer.GetQueue())-1] == ce.jackTokenizer.GetQueue()[len(ce.jackTokenizer.GetQueue())-2] {
+			if ce.jackTokenizer.GetQueue()[0] == ce.jackTokenizer.GetQueue()[1] {
 				ce.CompileExpressionList()
-			} else if ce.jackTokenizer.GetQueue()[len(ce.jackTokenizer.GetQueue())-1] == ")" {
+			} else if ce.jackTokenizer.GetQueue()[0] == ")" {
 				// Do nothing
 			} else {
 				panic("Syntax error: " + ce.jackTokenizer.GetCurToken() + " unexpected.")
@@ -844,9 +852,9 @@ func (ce *CompilationEngine) CompileTerm() {
 				subName += ce.jackTokenizer.GetCurToken()
 				ce.jackTokenizer.Advance()
 				if ce.jackTokenizer.GetCurToken() == "(" {
-					if ce.IsTerm(ce.jackTokenizer.GetQueue()[len(ce.jackTokenizer.GetQueue())-1]) {
+					if ce.IsTerm(ce.jackTokenizer.GetQueue()[0]) {
 						ce.CompileExpressionList()
-					} else if ce.jackTokenizer.GetQueue()[len(ce.jackTokenizer.GetQueue())-1] == ")" {
+					} else if ce.jackTokenizer.GetQueue()[0] == ")" {
 						// Do nothing
 					} else {
 						panic("Syntax error: " + ce.jackTokenizer.GetCurToken() + " unexpected.")
@@ -895,16 +903,18 @@ func (ce *CompilationEngine) CompileTerm() {
 		}
 		// UnaryOp term
 	} else if matched, _ := regexp.MatchString(`-|~`, ce.jackTokenizer.GetCurToken()); matched {
-		op := "-"
+		op := "~"
 		if ce.jackTokenizer.GetCurToken() == "-" {
 			op = "--"
 		}
-		if ce.jackTokenizer.GetQueue()[len(ce.jackTokenizer.GetQueue())-1] == "(" {
-			ce.jackTokenizer.Advance()
-			ce.CompileExpression()
-		} else if matched, _ := regexp.MatchString(ReEXIdentifier, ce.jackTokenizer.GetQueue()[len(ce.jackTokenizer.GetQueue())-1]); matched {
+		matchedReEX, _ := regexp.MatchString(ReEXIdentifier, ce.jackTokenizer.GetQueue()[0])
+		matchedNum, _ := regexp.MatchString(`[0-9]+`, ce.jackTokenizer.GetQueue()[0])
+		if matchedReEX || matchedNum {
 			ce.jackTokenizer.Advance()
 			ce.CompileTerm()
+		} else if ce.jackTokenizer.GetQueue()[0] == "(" {
+			ce.jackTokenizer.Advance()
+			ce.CompileExpression()
 		} else {
 			panic("Syntax error: " + ce.jackTokenizer.GetCurToken() + " unexpected.")
 		}
@@ -925,7 +935,7 @@ func (ce *CompilationEngine) CompileExpressionList() {
 
 	// next token maybe "," or ")"
 	if len(ce.jackTokenizer.GetQueue()) > 0 {
-		curToken := ce.jackTokenizer.GetQueue()[len(ce.jackTokenizer.GetQueue())-1]
+		curToken := ce.jackTokenizer.GetQueue()[0]
 		for curToken != ")" {
 			if curToken == "," {
 				ce.jackTokenizer.Advance()
@@ -942,7 +952,7 @@ func (ce *CompilationEngine) CompileExpressionList() {
 				panic("Syntax error: " + ce.jackTokenizer.GetCurToken() + " unexpected.")
 			}
 			if len(ce.jackTokenizer.GetQueue()) > 0 {
-				curToken = ce.jackTokenizer.GetQueue()[len(ce.jackTokenizer.GetQueue())-1]
+				curToken = ce.jackTokenizer.GetQueue()[0]
 			} else {
 				break
 			}

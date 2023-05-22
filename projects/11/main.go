@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -87,9 +88,12 @@ func (d *Demo) compileFile() {
 	cpe.CompileClass()
 }
 
+var (
+	inputFilePath = flag.String("path", "./ConvertToBin/Main.jack", "file name path")
+)
+
 func main() {
-	// change the file name
-	inputFile := "./Seven/Main.jack"
-	demo := NewDemo(inputFile)
+	flag.Parse()
+	demo := NewDemo(*inputFilePath)
 	demo.Compile()
 }
