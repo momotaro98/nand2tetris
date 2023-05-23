@@ -9,11 +9,13 @@
 
 * Assembly implementation is on [./projects/06](./projects/06).
 * VM implementation is on [./projects/08](./projects/08).
+* Compiler implementation is on [./projects/11](./projects/11).
 
 ## My notes
 
-* [Chapter4 機械語仕様(重要)](./projects/04/README.md)
-* [Chapter7 VM・スタックマシン仕様(重要)](./projects/07/README.md)
+* [Chapter4 機械語仕様](./projects/04/README.md)
+* [Chapter7 VM・スタックマシン仕様](./projects/07/README.md)
+* [Chapter11 コンパイラ仕様](./projects/11/README.md)
 
 ## References
 
