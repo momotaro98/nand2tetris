@@ -16,6 +16,7 @@
 * [Chapter4 機械語仕様](./projects/04/README.md)
 * [Chapter7 VM・スタックマシン仕様](./projects/07/README.md)
 * [Chapter11 コンパイラ仕様](./projects/11/README.md)
+* [Chapter12 OS機能仕様](./projects/12/README.md)
 
 ## References
 
